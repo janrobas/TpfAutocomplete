@@ -1367,7 +1367,7 @@ Fragment.prototype._read = function () {
 
     if(item) {
         if(typeof this._fragmentPage._properties.filter !== "undefined") {
-          // podatke o filtru damo na lastnosti strani
+          // podatke o filtru damo na lastnosti strani -- we copy filter data to fragment properties, because filter changes with page
           item.filter=(this._fragmentPage._properties.filter);
           this._fragmentPage._properties.vrs++
         }
@@ -1856,50 +1856,40 @@ TriplePatternIterator.prototype._createTransformer = function (bindings, options
 
   if(!rdf.hasVariables(boundPattern)) {
     fragment = new Iterator.PassthroughIterator();
-    var obstaja = true;
+    var exists = true;
 
-    var pfilter = true;
-    if(args.z) { pfilter = false; }
-
-
-    if(bindings.filter && pfilter/* && _.contains(predicates, boundPattern["predicate"])*/) {
-
+    if(bindings.filter/* && _.contains(predicates, boundPattern["predicate"])*/) {
       var filterFields = bindings.filter.split(',');
 
       var filterStr = new Buffer(filterFields[2], 'base64');
 
-      // filterFields[1,2] = m, k
       var bloomFilter =  new BloomFilter(filterFields[0], filterFields[1], filterStr);
 
-
-
       if(!rdf.isVariable(bindings._pattern.predicate) && (!rdf.isVariable(bindings._pattern.subject) || !rdf.isVariable(bindings._pattern.object))) {
-
         var testStr = boundPattern.subject + "|" + boundPattern.predicate + "|" + boundPattern.object;
 
         if(filterFields[0] == 0) {
-          obstaja = false;
+          exists = false;
         } else {
-          obstaja = bloomFilter.has(Buffer(testStr));
+          exists = bloomFilter.has(Buffer(testStr));
         }
-      } else if(!rdf.isVariable(bindings._pattern.predicate)) {
+      } else if(!rdf.isVariable(bindings._pattern.predicate)) { // if the only variable is predicate
         var parent = rdf.removeBindings(bindings, this._pattern);
-          
-        if(parent["subject"] != bindings._pattern.object && parent["object"] != bindings._pattern.object) {
 
+        // if we are testing membership of triple, linked with the object, then we have to make the membership query, because we don't have data about the object ("Jan 2" extension)
+        if(parent["subject"] != bindings._pattern.object && parent["object"] != bindings._pattern.object) {
           var testStr = boundPattern.subject + "|" + boundPattern.predicate + "|" + boundPattern.object;
 
           if(filterFields[0] == 0) {
-            obstaja = false;
+            exists = false;
           } else {
-            obstaja = bloomFilter.has(Buffer(testStr));
+            exists = bloomFilter.has(Buffer(testStr));
           }
         }
       }
-
     }
 
-    if (obstaja) {
+    if (exists) {
       fragment.setSource(self._client.getFragmentByPattern(boundPattern));
     } else {
       fragment.setSource(Iterator.empty());
