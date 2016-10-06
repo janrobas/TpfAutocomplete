@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="/jquery/dist/jquery.min.js"></script>
+    <!--<script src="javascripts/jquery-2.1.0.js"></script>-->
+
+    <!--<script src="javascripts/ldf-client-browser-amq-fixed-new.js"></script>-->
+
+    <!--<script src="javascripts/ldf-client-browser-jan-S6.js"></script>-->
+
+<script src="javascripts/ldf-client-browser-master.js"></script>
+
+    <!--<script src="javascripts/ldf-client-browser-jan-F1.js"></script>-->
+    <!--<script src="javascripts/ldf-client-browser-jan-S4.js"></script>-->
+
+
+    <script src="javascripts/ldf-client-jquery.js"></script>
+    <script src="javascripts/ldf-client-jquery-url.js"></script>
+  </head>
+  <body>
+    <input type="text" name="koncano" value="ne">
+    <input type="text" name="pretecencas" value="0">
+    <h1>Iskalnik</h1>
+    <div id="ldf-client">
+      <button id="start" style="display:none">Išči</button>
+      <h2>Več poizvedb:</h2>
+      <textarea cols="100" rows="30" id="poizvedbe">
+        <%= contents %>
+      </textarea>
+
+
+      <br />
+      <textarea cols="100" rows="10" id="poizvedba"></textarea>
+
+      <div>
+        <span data-iskalniki="true">
+        </span>
+      </div>
+
+      <div>
+        <button data-zacni-iskanje="true" id="zacniIskanje">Išči</button>
+        <button data-koncaj-iskanje="true" id="stop" style="display:none">Zaustavi</button>
+      </div>
+
+      <div id="statistika" style="display: none;">
+        <span class="stat">Število zahtevkov: <span id="steviloZahtevkov"></span></span>
+        <span class="stat">Število rezultatov: <span id="steviloRezultatov"></span></span>
+      </div>
+
+      <div id="rezultati"></div>
+
+      <div>
+        <label>Dnevnik izvedbe</label>
+        <pre id="log"></pre>
+      </div>
+    </div>
+
+    <script>
+      $( document ).ready(function() {
+        setTimeout(function() {
+          $('[name="pretecencas"]').val("timeout");
+          $('[name="koncano"]').val("da");
+        }, 270000);
+
+        $('#ldf-client').queryui({
+            "nonverbose": true,
+            "datasources": [
+            {
+              "name": "watdiv",
+              "url": "http://127.0.0.1:3000/watdiv",
+              "selected": true
+            }]
+        });
+
+        var zahtevki = 0;
+        var rezultati = 0;
+        var zap = 0;
+
+        var $rezultati = $("#rezultati");
+        var $poizvedbe = $("#poizvedbe");
+
+        $rezultati.on("novZahtevek", function(e, rezultat) {
+          zahtevki++;
+        });
+
+        $rezultati.on("konec", function(e, rezultat) {
+          naslednjiQuery();
+        });
+
+/*
+        $rezultati.on("novRezultat", function(e, rezultat) {
+          var rezultatHtml = rezultat.map(x=> "<div><b>"+x.key+": </b>" + x.value + "</div>").join("&nbsp;");
+          $(this).append("<div class=\"rezultat\">" + rezultatHtml + "</div>");
+          rezultati++;
+        });
+        $rezultati.on("niRezultatov", function(e) {
+          alert("d");
+          $(this).append("<div class=\"rezultat\">" + "ni rezultatov" + "</div>");
+        });
+*/
+
+        $("#zacniIskanje").on("click", function() {
+          naslednjiQuery();
+        });
+
+        function naslednjiQuery() {
+          var separator = "---";
+
+          var poizvedba = "";
+          var poizvedbe = $poizvedbe.val().trim();
+
+          var mesto = poizvedbe.indexOf(separator);
+
+          if(mesto == -1) {
+            poizvedba = poizvedbe;
+            $poizvedbe.val("");
+          } else {
+            poizvedba = poizvedbe.substring(0, mesto).trim();
+            $poizvedbe.val(poizvedbe.substring(mesto+separator.length).trim());
+          }
+
+          if(!poizvedba) {
+            $('[name="pretecencas"]').val(new Date().getTime() - cas);
+            $('[name="koncano"]').val("da");
+            return;
+          }
+
+          $("#poizvedba").val(poizvedba);
+
+          console.log(zahtevki);
+
+          zahtevki=0;
+          rezultati=0;
+
+          cas = new Date().getTime();
+
+          $("#start").trigger("click");
+        }
+
+        setTimeout(function() {
+        	naslednjiQuery();
+        }, 500);
+
+
+      });
+    </script>
+  </body>
+</html>

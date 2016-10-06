@@ -1,0 +1,49 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+.iskalnik {
+  display: inline;
+}
+
+.select2 {
+  margin-bottom: 30px !important;
+  margin-right: 30px !important;
+  margin-top: 0px !important;
+  margin-left: 0px !important;
+}
+
+.url {
+  color: #4444FF;
+}
+
+.rezultat {
+  border: 1px solid #31708f;
+  background-color: #d9edf7;
+  padding: 4px;
+  margin: 10px;
+  border-radius: 4px;
+  float: left;
+}
+
+.rezultat > div {
+  background-color: #f8ffff;
+  padding: 4px;
+  margin: 8px;
+  border-radius: 9px;
+  float: left;
+}
+
+#statistika {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  margin-right: 20px;
+}

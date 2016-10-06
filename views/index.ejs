@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel='stylesheet' href='/select2/dist/css/select2.min.css' />
+    <!--<script src="/jquery/dist/jquery.min.js"></script>-->
+    <script src="javascripts/jquery-2.1.0.js"></script>
+    <script src="javascripts/ldf-client-jquery.js"></script>
+    <script src="javascripts/ldf-client-jquery-url.js"></script>
+
+
+<script src="javascripts/git.js"></script>
+<!--    <script src="javascripts/jan2.js"></script>-->
+    <script>
+    jQuery(function ($) {
+            $('#ldf-client').queryui({/* settings: 'queries.json',*/
+            "datasources": [
+            {
+              "name": "<%= tpfname %>",
+              "url": "<%= tpfurl %>",
+              "selected": true
+            }]
+        });
+    });
+    </script>
+  </head>
+  <body>
+    <h1>Iskalnik</h1>
+    <div id="ldf-client">
+      <button id="start" style="display:none">Išči</button>
+      <textarea id="poizvedba" style="display: none;"></textarea>
+
+      <div>
+        <span data-iskalniki="true">
+        </span>
+      </div>
+
+      <div>
+        <button data-zacni-iskanje="true" id="zacniIskanje">Išči</button>
+        <button data-koncaj-iskanje="true" id="stop" style="display:none">Zaustavi</button>
+      </div>
+
+      <div id="statistika" style="display: none;">
+        <span class="stat">Število zahtevkov: <span id="steviloZahtevkov"></span></span>
+        <span class="stat">Število rezultatov: <span id="steviloRezultatov"></span></span>
+      </div>
+
+      <div id="rezultati"></div>
+
+      <div style="display: none;">
+        <label>Dnevnik izvedbe</label>
+        <pre id="log"></pre>
+      </div>
+    </div>
+
+    <script>
+      $( document ).ready(function() {
+        var trojcki = vrniTrojcke();
+        if(trojcki.length == 0) {
+          $("#zacniIskanje").hide();
+        } else {
+          $("#zacniIskanje").show();
+        }
+
+        var zahtevki = 0;
+        var rezultati = 0;
+        var zap = 0;
+
+        function sortiraj(element) {
+          var selectList = $("#"+element.id+" option"); //$('#iskalnik option');
+          function vrstniRed(str) {
+            if(str.length > 0) {
+              switch(str[0]) {
+                case "s":
+                  return 1;
+                case "p":
+                  return 2;
+                case "o":
+                  return 3;
+              }
+            } else {
+              return 0;
+            }
+          }
+
+          function sort(a,b){
+                a = vrstniRed(a.text.toLowerCase());
+                b = vrstniRed(b.text.toLowerCase());
+                if(a > b) {
+                  return 1;
+                } else if (a < b) {
+                  return -1;
+                }
+                return 0;
+          }
+          var selectElement = $("#"+element.id);
+          selectList.sort(sort);
+          selectElement.html(selectList);
+          selectElement.trigger("change");
+        }
+
+        function vrniId(zap) {
+          return "iskalnik" + zap;
+        }
+
+        function Del(vrednost) {
+            this.vrednosti = vrednost.split("|");
+
+            this.vrniTip = function() {
+                return this.vrednosti[1];
+            }
+
+            this.vrniVsebino = function() {
+                return this.vrednosti[2];
+            }
+
+            this.jeSpremenljivka = function() {
+                return this.vrednosti[2][0] == "?";
+            }
+
+            this.vrniDel = function() {
+              if(this.jeSpremenljivka()) {
+                var spr = this.vrniVsebino();
+                if(spr == "??") {
+                  spr = "?aaa";
+                }
+
+                return spr;
+              } else {
+                return "<" + this.vrniVsebino() + ">";
+              }
+            }
+        }
+
+        function narediIskalnik(element) {
+          element.select2({
+            language: "si",
+            ajax: {
+              url: "/autocomplete",
+              dataType: 'json',
+              delay: 250,
+              data: function (params) {
+                return {
+                  q: params.term,
+                  p: params.page,
+                  selected: this.val(),
+                  spremenljivke: vrniSpremenljivke()
+                };
+              },
+              processResults: function (data, params) {
+                params.page = params.page || 1;
+
+                return {
+                  results: data.items,
+                  pagination: {
+                    more: data.more
+                  }
+                };
+              },
+              cache: true
+            },
+            // minimumInputLength: 1,
+            maximumSelectionLength: 3,  // subject, object, predicate
+            escapeMarkup: function (markup) {
+              return markup;
+            },
+            templateResult: function(response){
+              if(response.url && response.del) {
+                return response.text + ' <span class="url">' + response.url + '</small>';
+              } else if(response.url) {
+                return '<span class="url">' + response.url + '</small>';
+              } else {
+                return response.text;
+              }
+            },
+            templateSelection: function(response){
+              return response.text;
+            },
+            id: function(connection){
+              console.log(connection);
+            }
+          }).on("select2:select", function() {
+            sortiraj(this);
+          }).on("select2:close", function() {
+            var selectElement = $("#"+this.id);
+            var lastid = vrniId(zap);
+            if(!selectElement.val() && this.id != lastid) {
+              selectElement.select2("destroy");
+              selectElement.parents("[data-iskalnik]").remove();
+              narediNovIskalnikCeJePotrebno();
+              $("[data-iskalniki]").find("select").last().select2("focus");
+            } else {
+              narediNovIskalnikCeJePotrebno();
+            }
+
+            var trojcki = vrniTrojcke();
+            if(trojcki.length == 0) {
+              $("#zacniIskanje").hide();
+            } else {
+              $("#zacniIskanje").show();
+            }
+          });
+        }
+
+        function narediNovIskalnik() {
+          zap++;
+          var id = vrniId(zap);
+          var iskalnikHtml = '' +
+            '<span data-iskalnik="true" data-zap="' + zap + '" class="iskalnik">' +
+              '<select id="' + id + '" multiple="multiple" style="width: 500px;">' +
+              '</select>' +
+            '</span>';
+
+          $("[data-iskalniki]").append(iskalnikHtml);
+          narediIskalnik($("#" + id));
+        }
+
+        function vrniSpremenljivke() {
+          var spremenljivke = new Array();
+          $("[data-iskalniki]").find("select").each(function() {
+            var values = $(this).val();
+            if(values) {
+              values = values.map(x=>new Del(x)).filter(x=>x.jeSpremenljivka());
+              values.forEach(x=> { if(!spremenljivke.includes(x.vrniVsebino())) spremenljivke.push(x.vrniVsebino()); } );
+            }
+          });
+
+          return spremenljivke;
+        }
+
+        // primer: value="3|o|http://xmlns.com/foaf/0.1/Document"
+        function vrniTrojcke() {
+          var trojcki = new Array();
+          $("[data-iskalniki]").find("select").each(function() {
+            var values = $(this).val();
+
+            if(values && values.length == 3) {
+              values = values.map(x=>new Del(x));
+              var s = values.filter(x=>x.vrniTip()=="s")[0];
+              var p = values.filter(x=>x.vrniTip()=="p")[0];
+              var o = values.filter(x=>x.vrniTip()=="o")[0];
+
+              var triple="";
+
+              triple+=s.vrniDel();
+              triple+=" ";
+              triple+=p.vrniDel();
+              triple+=" ";
+              triple+=o.vrniDel();
+
+              trojcki.push(triple);
+            }
+          });
+
+          return trojcki;
+        }
+
+        function narediNovIskalnikCeJePotrebno() {
+          if($("[data-iskalniki]").find("select").last().val()) {
+            narediNovIskalnik();
+          }
+        }
+
+        function posodobiZahtevke() {
+          $("#steviloZahtevkov").html(zahtevki);
+          $("#statistika").show();
+        }
+
+        function posodobiRezultate() {
+          $("#steviloRezultatov").html(rezultati);
+          $("#statistika").show();
+        }
+
+        narediNovIskalnik();
+
+        $("#rezultati").on("novZahtevek", function(e, rezultat) {
+          zahtevki++;
+          posodobiZahtevke();
+        });
+
+        $("#rezultati").on("novRezultat", function(e, rezultat) {
+          var rezultatHtml = rezultat.map(x=> "<div><b>"+x.key+": </b>" + x.value + "</div>").join("&nbsp;");
+          $(this).append("<div class=\"rezultat\">" + rezultatHtml + "</div>");
+          rezultati++;
+          posodobiRezultate();
+        });
+
+        $("#rezultati").on("niRezultatov", function(e) {
+          $(this).append("<div class=\"rezultat\">" + "ni rezultatov" + "</div>");
+        });
+
+        $("#zacniIskanje").on("click", function() {
+          var trojcki = vrniTrojcke();
+          if(trojcki.length == 0) {
+            return;
+          }
+
+          zahtevki=0;
+          rezultati=0;
+          posodobiZahtevke();
+          posodobiRezultate();
+
+          var query = "SELECT " + vrniSpremenljivke().filter(x=>!x.startsWith("?_")).join(" ") + " WHERE { ";
+
+          trojcki.forEach(x=> { query+=(x + ". "); });
+          query+=" }";
+          $("#poizvedba").val(query);
+          $("#start").trigger("click");
+        });
+      });
+    </script>
+    <script src="/select2/dist/js/select2.full.min.js"></script>
+    <script src="/javascripts/si.js"></script>
+  </body>
+</html>

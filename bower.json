@@ -1,0 +1,23 @@
+{
+  "name": "autocomplete",
+  "description": "",
+  "main": "app.js",
+  "authors": [
+    "Jan Robas <janrobas@gmail.com>"
+  ],
+  "license": "no licence",
+  "moduleType": [],
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^2.2.2",
+    "select2": "^4.0.2"
+  }
+}
